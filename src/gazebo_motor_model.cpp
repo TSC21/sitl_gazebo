@@ -51,10 +51,16 @@ void GazeboMotorModel::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf) {
     joint_name_ = _sdf->GetElement("jointName")->Get<std::string>();
   else
     gzerr << "[gazebo_motor_model] Please specify a jointName, where the rotor is attached.\n";
+  if (_sdf->HasElement("tiltJointName"))
+    tilt_joint_name_ = _sdf->GetElement("tiltJointName")->Get<std::string>();
+
   // Get the pointer to the joint.
   joint_ = model_->GetJoint(joint_name_);
   if (joint_ == NULL)
     gzthrow("[gazebo_motor_model] Couldn't find specified joint \"" << joint_name_ << "\".");
+
+  // Get the pointer to the tilt joint.
+  tilt_joint_ = model_->GetJoint(tilt_joint_name_);
 
   // setup joint control pid to control joint
   if (_sdf->HasElement("joint_control_pid"))
@@ -192,14 +198,37 @@ void GazeboMotorModel::UpdateForcesAndMoments() {
   double real_motor_velocity = motor_rot_vel_ * rotor_velocity_slowdown_sim_;
   double force = real_motor_velocity * real_motor_velocity * motor_constant_;
 
+  // Getting the parent link, such that the resulting torques can be applied to it.
+  physics::Link_V parent_links = link_->GetParentJointsLinks();
+
   // scale down force linearly with forward speed
   // XXX this has to be modelled better
   math::Vector3 body_velocity = link_->GetWorldLinearVel();
   double vel = body_velocity.GetLength();
-  double scalar = 1 - vel / 25.0; // at 50 m/s the rotor will not produce any force anymore
+  double scalar = 1 - vel / 50.0; // at 50 m/s the rotor will not produce any force anymore
   scalar = math::clamp(scalar, 0.0, 1.0);
-  // Apply a force to the link.
-  link_->AddRelativeForce(math::Vector3(0, 0, force * scalar));
+  force *= scalar;
+
+  // check for the presense of the tilrotor (the bellow is adapted for a tricopter with a tiltrotor on the back motor)
+  // TODO: For a general use case, implement a switch condition for different implementations (ex: tilrotors on the 4 motors for a tiltquad)
+  if(tilt_joint_ != NULL)
+  {
+    motor_tilt_pos_ = tilt_joint_->GetAngle(0).Radian();
+    //gzdbg << "Servo Tilt: " << motor_tilt_pos_ * 180 / M_PI << " degrees\n";
+
+    // Apply a force to the rotor link where the tiltrotor is present.
+    link_->AddRelativeForce(math::Vector3(0, 0, force * cos(motor_tilt_pos_)));
+
+    // Apply a torque to the parent link (base_link)
+    math::Vector3 base_pose =  math::Vector3(link_->GetRelativePose().pos.x, link_->GetRelativePose().pos.y, link_->GetRelativePose().pos.z);
+    parent_links.at(0)->AddRelativeTorque(base_pose.Cross(math::Vector3(0, force * sin(motor_tilt_pos_), force * cos(motor_tilt_pos_))));
+  }
+  else
+  {
+    motor_tilt_pos_ = 0.0;
+    // Apply a force to the rotor link.
+    link_->AddRelativeForce(math::Vector3(0, 0, force));
+  }
 
   // Forces from Philppe Martin's and Erwan Salaün's
   // 2010 IEEE Conference on Robotics and Automation paper
@@ -212,8 +241,6 @@ void GazeboMotorModel::UpdateForcesAndMoments() {
   // Apply air_drag to link.
   link_->AddForce(air_drag);
   // Moments
-  // Getting the parent link, such that the resulting torques can be applied to it.
-  physics::Link_V parent_links = link_->GetParentJointsLinks();
   // The tansformation from the parent_link to the link_.
   math::Pose pose_difference = link_->GetWorldCoGPose() - parent_links.at(0)->GetWorldCoGPose();
   math::Vector3 drag_torque(0, 0, -turning_direction_ * force * moment_constant_);
@@ -262,7 +289,7 @@ void GazeboMotorModel::UpdateMotorFail() {
     if (screen_msg_flag){
       std::cout << "Motor number [" << motor_Failure_Number_ <<"] failed!  [Motor thrust = 0]" << std::endl;
       tmp_motor_num = motor_Failure_Number_;
-      
+
       screen_msg_flag = 0;
     }
   }else if (motor_Failure_Number_ == 0 && motor_number_ ==  tmp_motor_num - 1){

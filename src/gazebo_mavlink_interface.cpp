@@ -386,6 +386,16 @@ void GazeboMavlinkInterface::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf
     }
   }
 
+  if (_sdf->HasElement("tilt_servo_joint")) {
+    std::string tilt_servo_joint_name = _sdf->GetElement("tilt_servo_joint")->Get<std::string>();
+    tilt_servo_joint_ = model_->GetJoint(tilt_servo_joint_name);
+    int control_index;
+    getSdfParam<int>(_sdf->GetElement("tilt_servo_joint"), "input_index", control_index, -1);
+    if (control_index >= 0) {
+      joints_.at(control_index) = tilt_servo_joint_;
+    }
+  }
+
   // Listen to the update event. This event is broadcast every
   // simulation iteration.
   updateConnection_ = event::Events::ConnectWorldUpdateBegin(
@@ -956,10 +966,25 @@ void GazeboMavlinkInterface::handle_control(double _dt)
         /// really not ideal if your drone is moving at all,
         /// mixing kinematic updates with dynamics calculation is
         /// non-physical.
+
+	/// Normalize joint angle in case of a tilt control with negative values
+	double joint_angle;
+	if (std::abs(zero_position_disarmed_[i]) == input_scaling_[i] / 2)
+	{
+	  double ceil = input_scaling_[i] / 2;
+	  double floor = -ceil;
+	  double max = input_scaling_[i];
+	  double min = 0.0;
+	  joint_angle = ((ceil - floor) * (input_reference_[i] - min))/(max - min) + floor;
+	  //gzdbg << "joint_angle: " << joint_angle * 180 / M_PI << " degrees\n";
+	}
+	else
+	  joint_angle = input_reference_[i];
+
      #if GAZEBO_MAJOR_VERSION >= 6
-        joints_[i]->SetPosition(0, input_reference_[i]);
+        joints_[i]->SetPosition(0, joint_angle);
      #else
-        joints_[i]->SetAngle(0, input_reference_[i]);
+        joints_[i]->SetAngle(0, joint_angle);
      #endif
       }
       else

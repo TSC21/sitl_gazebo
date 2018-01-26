@@ -100,6 +100,7 @@ public:
     gimbal_yaw_joint_(nullptr),
     gimbal_pitch_joint_(nullptr),
     gimbal_roll_joint_(nullptr),
+    tilt_servo_joint_(nullptr),
     input_offset_ {},
     input_scaling_ {},
     zero_position_disarmed_ {},
@@ -142,10 +143,12 @@ private:
   physics::JointPtr gimbal_yaw_joint_;
   physics::JointPtr gimbal_pitch_joint_;
   physics::JointPtr gimbal_roll_joint_;
+  physics::JointPtr tilt_servo_joint_;
   common::PID propeller_pid_;
   common::PID elevator_pid_;
   common::PID left_elevon_pid_;
   common::PID right_elevon_pid_;
+  common::PID tilt_servo_pid_;
   bool use_propeller_pid_;
   bool use_elevator_pid_;
   bool use_left_elevon_pid_;
