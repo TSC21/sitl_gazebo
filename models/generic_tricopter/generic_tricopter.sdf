@@ -4,16 +4,33 @@
     <link name='base_link'>
       <pose>0 0 0 0 0 0</pose>
       <inertial>
-        <pose>0 0 0 0 0 0</pose>
+        <pose>5e-05 -3.66e-03 -3.55e-03 0 0 0</pose> <!--CG-->
         <mass>1.5</mass>
         <inertia>
-          <ixx>0.139</ixx>
-          <ixy>0</ixy>
-          <ixz>0</ixz>
-          <iyy>0.08834</iyy>
-          <iyz>0</iyz>
-          <izz>0.069</izz>
+          <ixx>1.122238e-02</ixx>
+          <ixy>-1.066152e-06</ixy>
+          <ixz>-1.489144e-06</ixz>
+	  <iyx>-1.066152e-06</iyx>
+          <iyy>2.070884e-02</iyy>
+          <iyz>-1.852944e-04</iyz>
+	  <izx>-1.489144e-05</izx>
+	  <izy>-1.852944e-04</izy>
+          <izz>1.034347e-02</izz>
         </inertia>
+	<!--
+	<mass>4.92988</mass>
+        <inertia>
+          <ixx>3.688333e-02</ixx>
+          <ixy>-3.504000e-06</ixy>
+          <ixz>-4.894200e-06</ixz>
+	  <iyx>-3.504000E-06</iyx>
+          <iyy>6.806140E-02</iyy>
+          <iyz>-6.089860E-04</iyz>
+	  <izx>-4.894200E-05</izx>
+	  <izy>-6.089860E-04</izy>
+          <izz>3.399470E-02</izz>
+        </inertia>
+	-->
       </inertial>
       <collision name='base_link_collision'>
 	<pose>0 0 0 0 0 0</pose>
