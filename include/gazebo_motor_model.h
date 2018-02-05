@@ -111,7 +111,7 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
   std::string command_sub_topic_;
   std::string motor_failure_sub_topic_;
   std::string joint_name_;
-  std::string tilt_joint_name_;
+  std::string tilt_servo_joint_name_;
   std::string link_name_;
   std::string motor_speed_pub_topic_;
   std::string namespace_;
@@ -142,7 +142,7 @@ class GazeboMotorModel : public MotorModel, public ModelPlugin {
 
   physics::ModelPtr model_;
   physics::JointPtr joint_;
-  physics::JointPtr tilt_joint_;
+  physics::JointPtr tilt_servo_joint_;
   common::PID pid_;
   bool use_pid_;
   physics::LinkPtr link_;

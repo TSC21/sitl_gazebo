@@ -52,7 +52,7 @@ void GazeboMotorModel::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf) {
   else
     gzerr << "[gazebo_motor_model] Please specify a jointName, where the rotor is attached.\n";
   if (_sdf->HasElement("tiltJointName"))
-    tilt_joint_name_ = _sdf->GetElement("tiltJointName")->Get<std::string>();
+    tilt_servo_joint_name_ = _sdf->GetElement("tiltJointName")->Get<std::string>();
 
   // Get the pointer to the joint.
   joint_ = model_->GetJoint(joint_name_);
@@ -60,7 +60,7 @@ void GazeboMotorModel::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf) {
     gzthrow("[gazebo_motor_model] Couldn't find specified joint \"" << joint_name_ << "\".");
 
   // Get the pointer to the tilt joint.
-  tilt_joint_ = model_->GetJoint(tilt_joint_name_);
+  tilt_servo_joint_ = model_->GetJoint(tilt_servo_joint_name_);
 
   // setup joint control pid to control joint
   if (_sdf->HasElement("joint_control_pid"))
@@ -102,7 +102,6 @@ void GazeboMotorModel::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf) {
   link_ = model_->GetLink(link_name_);
   if (link_ == NULL)
     gzthrow("[gazebo_motor_model] Couldn't find specified link \"" << link_name_ << "\".");
-
 
   if (_sdf->HasElement("motorNumber"))
     motor_number_ = _sdf->GetElement("motorNumber")->Get<int>();
@@ -201,6 +200,12 @@ void GazeboMotorModel::UpdateForcesAndMoments() {
   // Getting the parent link, such that the resulting torques can be applied to it.
   physics::Link_V parent_links = link_->GetParentJointsLinks();
 
+  // The tansformation from the parent_link to the link_.
+  math::Pose pose_difference = link_->GetWorldCoGPose() - parent_links.at(0)->GetWorldCoGPose();
+
+  // Drag torque
+  math::Vector3 drag_torque;
+
   // scale down force linearly with forward speed
   // XXX this has to be modelled better
   math::Vector3 body_velocity = link_->GetWorldLinearVel();
@@ -211,24 +216,31 @@ void GazeboMotorModel::UpdateForcesAndMoments() {
 
   // check for the presense of the tilrotor (the bellow is adapted for a tricopter with a tiltrotor on the back motor)
   // TODO: For a general use case, implement a switch condition for different implementations (ex: tilrotors on the 4 motors for a tiltquad)
-  if(tilt_joint_ != NULL)
+  if(tilt_servo_joint_ != NULL)
   {
-    motor_tilt_pos_ = tilt_joint_->GetAngle(0).Radian();
-    //gzdbg << "Servo Tilt: " << motor_tilt_pos_ * 180 / M_PI << " degrees\n";
+    motor_tilt_pos_ = tilt_servo_joint_->GetAngle(0).Radian() + link_->GetRelativePose().rot.y;
+    //gzdbg << "Back motor roll: " << motor_tilt_pos_ * 180 / M_PI << " degrees\n";
 
     // Apply a force to the rotor link where the tiltrotor is present.
-    link_->AddRelativeForce(math::Vector3(0, 0, force * cos(motor_tilt_pos_)));
-
-    // Apply a torque to the parent link (base_link)
-    math::Vector3 base_pose =  math::Vector3(link_->GetRelativePose().pos.x, link_->GetRelativePose().pos.y, link_->GetRelativePose().pos.z);
-    parent_links.at(0)->AddRelativeTorque(base_pose.Cross(math::Vector3(0, force * sin(motor_tilt_pos_), force * cos(motor_tilt_pos_))));
+    // The motor produced forced will be divided in two components, that depend on the tilt angle.
+    // Note: here it only influences in Y and Z-axis since the tiltrotor rolls left and right.
+    link_->AddRelativeForce(math::Vector3(0, force * sin(motor_tilt_pos_), force * cos(motor_tilt_pos_)));
   }
   else
   {
     motor_tilt_pos_ = 0.0;
+
     // Apply a force to the rotor link.
     link_->AddRelativeForce(math::Vector3(0, 0, force));
   }
+
+  // Apply a torque to the parent link (base_link)
+  // Note: here it only influences in Y since the tiltrotor rolls left and right.
+  math::Vector3 base_pose = math::Vector3(link_->GetRelativePose().pos.x, link_->GetRelativePose().pos.y, link_->GetRelativePose().pos.z);
+  parent_links.at(0)->AddRelativeTorque(base_pose.Cross(math::Vector3(0, force * sin(motor_tilt_pos_), 0)));
+
+  // Drag torque is influenced by the tilt of the motor also
+  drag_torque = math::Vector3(0, 0, -turning_direction_ * force * cos(motor_tilt_pos_) * moment_constant_);
 
   // Forces from Philppe Martin's and Erwan Salaün's
   // 2010 IEEE Conference on Robotics and Automation paper
@@ -240,10 +252,8 @@ void GazeboMotorModel::UpdateForcesAndMoments() {
   math::Vector3 air_drag = -std::abs(real_motor_velocity) * rotor_drag_coefficient_ * body_velocity_perpendicular;
   // Apply air_drag to link.
   link_->AddForce(air_drag);
+
   // Moments
-  // The tansformation from the parent_link to the link_.
-  math::Pose pose_difference = link_->GetWorldCoGPose() - parent_links.at(0)->GetWorldCoGPose();
-  math::Vector3 drag_torque(0, 0, -turning_direction_ * force * moment_constant_);
   // Transforming the drag torque into the parent frame to handle arbitrary rotor orientations.
   math::Vector3 drag_torque_parent_frame = pose_difference.rot.RotateVector(drag_torque);
   parent_links.at(0)->AddRelativeTorque(drag_torque_parent_frame);

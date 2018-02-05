@@ -393,16 +393,16 @@
       </axis>
     </joint>
     <link name='servo_motor'>
-      <pose>-0.45 0 0.148 0 0 0</pose>
+      <pose>5e-05 -3.66e-03 -3.55e-03 0 0 0</pose>
       <inertial>
-        <mass>0.009</mass>
+	<mass>9e-03</mass>
         <inertia>
-          <ixx>0.0000001</ixx>
+          <ixx>1e-07</ixx>
           <ixy>0.0</ixy>
-          <iyy>0.0000001</iyy>
+          <iyy>1e-07</iyy>
           <ixz>0.0</ixz>
           <iyz>0.0</iyz>
-          <izz>0.0000001</izz>
+          <izz>1e-07</izz>
         </inertia>
       </inertial>
     </link>
@@ -430,7 +430,6 @@
     <plugin name='front_right_motor_model' filename='librotors_gazebo_motor_model.so'>
       <robotNamespace></robotNamespace>
       <jointName>rotor_0_joint</jointName>
-      <tiltJointName></tiltJointName>
       <linkName>rotor_0</linkName>
       <turningDirection>ccw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
@@ -448,7 +447,6 @@
     <plugin name='front_left_motor_model' filename='librotors_gazebo_motor_model.so'>
       <robotNamespace></robotNamespace>
       <jointName>rotor_1_joint</jointName>
-      <tiltJointName></tiltJointName>
       <linkName>rotor_1</linkName>
       <turningDirection>cw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
@@ -531,6 +529,9 @@
           <joint_control_type>position_kinematic</joint_control_type>
           <joint_name>tilt_servo_joint</joint_name>
         </channel>
+	<tilt_servo_joint>
+          tilt_servo_joint
+        </tilt_servo_joint>
       </control_channels>
     </plugin>
     <plugin name='rotors_gazebo_imu_plugin' filename='librotors_gazebo_imu_plugin.so'>
@@ -546,9 +547,6 @@
       <accelerometerBiasCorrelationTime>300.0</accelerometerBiasCorrelationTime>
       <accelerometerTurnOnBiasSigma>0.196</accelerometerTurnOnBiasSigma>
     </plugin>
-    <tilt_servo_joint>
-      tilt_servo_joint
-    </tilt_servo_joint>
     <static>0</static>
   </model>
 </sdf>
