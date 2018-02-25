@@ -918,9 +918,9 @@ void GazeboMavlinkInterface::handle_control(double _dt)
         /// mixing kinematic updates with dynamics calculation is
         /// non-physical.
      #if GAZEBO_MAJOR_VERSION >= 6
-        joints_[i]->SetPosition(0, input_reference_[i]);
+        joints_[i]->SetPosition(0, target);
      #else
-        joints_[i]->SetAngle(0, input_reference_[i]);
+        joints_[i]->SetAngle(0, target);
      #endif
       }
       else
